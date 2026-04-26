@@ -1,7 +1,7 @@
+use domain::{CoreError, Result};
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
-use domain::{Result, CoreError};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -62,6 +62,12 @@ pub struct PassportAuthority {
     signing_key: SigningKey,
 }
 
+impl Default for PassportAuthority {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PassportAuthority {
     /// Initialize a new authority with a securely generated random keypair
     pub fn new() -> Self {
@@ -81,7 +87,7 @@ impl PassportAuthority {
             payload,
             signature: vec![],
         };
-        
+
         let bytes = passport.serialize_payload()?;
         let signature = self.signing_key.sign(&bytes);
         passport.signature = signature.to_bytes().to_vec();
@@ -96,9 +102,12 @@ impl PassportAuthority {
         }
 
         let bytes = passport.serialize_payload()?;
-        let sig_bytes: [u8; 64] = passport.signature.as_slice().try_into()
+        let sig_bytes: [u8; 64] = passport
+            .signature
+            .as_slice()
+            .try_into()
             .map_err(|_| CoreError::AuthError("Invalid signature length".to_string()))?;
-        
+
         let signature = Signature::from_bytes(&sig_bytes);
 
         public_key
@@ -133,7 +142,8 @@ mod tests {
         payload.expires_at = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
-            .as_secs() - 100;
+            .as_secs()
+            - 100;
 
         let passport = authority.issue(payload).unwrap();
 
