@@ -1,0 +1,30 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/domain",
+    "crates/ghost-mesh",
+    "crates/orchestrator",
+    "crates/agents",
+    "services/api-gateway"
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+authors = ["Sandeep Jaiswar"]
+
+[workspace.dependencies]
+ed25519-dalek = { version = "2.2", features = ["rand_core"] }
+rand = "0.8"
+bincode = { version = "2.0.0-rc.3", features = ["serde"] } # Note: bincode 3.0.0 contains a compile_error, using 2.0.0-rc.3 per best practices for v3 migration
+tokio = { version = "1.37", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+axum = "0.8"
+reqwest = { version = "0.12", features = ["json"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+async-trait = "0.1"
+thiserror = "2.0"
+anyhow = "1.0"
