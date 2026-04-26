@@ -1,3 +1,6 @@
+pub mod architect;
+pub mod coder;
+
 use async_trait::async_trait;
 use domain::{CoreError, Result};
 use reqwest::Client;
