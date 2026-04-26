@@ -2,7 +2,16 @@
 
 A high-performance orchestration system for autonomous software engineering. Built natively as a highly concurrent Rust monorepo, this fabric ingests Product Requirement Documents (PRDs) and manages a swarm of specialized AI agents (Architects, Coders, Security, QA) to autonomously build, verify, and deploy production-ready systems.
 
-Designed for efficiency and scale (intended for 1M+ users), this acts as the "Operating System" for autonomous code generation and validation.
+> [!NOTE]
+> **Project Status / Current Scaffold**
+> - **`services/api-gateway`**: Functional ingress with health checks. WebSocket deliberation broadcasting is WIP.
+> - **`crates/orchestrator`**: Skeletal implementation of the DAG state machine.
+> - **`crates/agents`**: Scaffolded with `LlmProvider` trait. Requires a local `llama-server` backend.
+> - **`crates/ghost-mesh`**: Core passport issuance and crypto-first verification enabled.
+
+## Environment Requirements
+- **Rust Toolchain**: ≥1.85 (Edition 2024)
+- **Local Inference**: A running `llama.cpp` HTTP server (e.g., `llama-server --model ... --port 8080`) is required for the `agents` crate to function.
 
 ## Core Philosophical Pillars
 
@@ -19,22 +28,38 @@ Every autonomous agent requires a digital "passport" to interface with legacy ba
 
 ## High-Level Architecture (Cargo Workspace)
 
-1. **`crates/domain`**: Foundational domain primitives, data models, enumerations, and custom Result/Error mappings utilized system-wide.
-2. **`crates/ghost-mesh`**: The Zero-Trust Public Key Infrastructure executing passport issuance, signature generation, and verification at microsecond latency.
+1. **`crates/domain`**: Foundational domain primitives, data models, and custom `CoreError` mappings.
+2. **`crates/ghost-mesh`**: The Zero-Trust Public Key Infrastructure executing passport issuance and crypto-first verification.
 3. **`crates/orchestrator`**: The task distribution and Directed Acyclic Graph (DAG) state machine.
-4. **`crates/agents`**: Specialized agent interface layers (Architect, Coder, etc.) tied to the `llama-server` backend via async `LlmProvider` wrappers.
-5. **`services/api-gateway`**: The user-facing ingress layer (`Axum` server). Manages incoming PRDs and outbound real-time streams of the agent's decision deliberation process.
+4. **`crates/agents`**: Specialized agent interface layers tied to the `llama-server` backend via async `LlmProvider` wrappers.
+5. **`services/api-gateway`**: The user-facing ingress layer (`Axum` server).
 
 ## Quickstart
 
+### 1. Verification
 Verify the monorepo logic correctly links and parses shared dependencies from the workspace root:
 
 ```bash
 cargo check --workspace
 ```
 
-Execute the Ghost-Mesh security test suite against forged or expired passports:
+Execute the Ghost-Mesh security test suite:
 
 ```bash
 cargo test --workspace
+```
+
+### 2. Running Locally
+Start the API Gateway:
+
+```bash
+# Optional: BIND_ADDR="127.0.0.1:4000"
+cargo run -p api-gateway
+```
+
+In another terminal, verify the service:
+
+```bash
+curl http://localhost:3000/health
+# Expected: "Gateway is running!"
 ```

@@ -22,24 +22,29 @@ pub struct PassportPayload {
 }
 
 impl PassportPayload {
-    pub fn new(agent_id: impl Into<String>, role: AgentRole, ttl_seconds: u64) -> Self {
+    pub fn new(agent_id: impl Into<String>, role: AgentRole, ttl_seconds: u64) -> Result<Self> {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .map_err(|e| CoreError::InternalError(format!("System time error: {}", e)))?
             .as_secs();
-        Self {
+        
+        let expires_at = now.checked_add(ttl_seconds)
+            .ok_or_else(|| CoreError::InternalError("Timestamp overflow".to_string()))?;
+
+        Ok(Self {
             agent_id: agent_id.into(),
             role,
             issued_at: now,
-            expires_at: now + ttl_seconds,
-        }
+            expires_at,
+        })
     }
 
     pub fn is_expired(&self) -> bool {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
+            .map(|d| d.as_secs())
+            .unwrap_or(u64::MAX); // Conservative value: if time is before epoch, report as expired (or use a Result)
+        
         now > self.expires_at
     }
 }
@@ -53,8 +58,9 @@ pub struct Passport {
 impl Passport {
     /// Serialize the payload to bytes using bincode for deterministic signing
     pub fn serialize_payload(&self) -> Result<Vec<u8>> {
-        bincode::serialize(&self.payload)
-            .map_err(|e| CoreError::AuthError(format!("Failed to serialize payload: {}", e)))
+        // Updated to use bincode 2.0/3.0 API with serde support
+        bincode::serde::encode_to_vec(&self.payload, bincode::config::standard())
+            .map_err(|e| CoreError::SerializationError(format!("Failed to serialize payload: {}", e)))
     }
 }
 
@@ -97,10 +103,7 @@ impl PassportAuthority {
 
     /// Verify an arbitrary passport using a provided verifying key
     pub fn verify(passport: &Passport, public_key: &VerifyingKey) -> Result<()> {
-        if passport.payload.is_expired() {
-            return Err(CoreError::AuthError("Passport has expired".to_string()));
-        }
-
+        // Reordered: Cryptographic validation FIRST
         let bytes = passport.serialize_payload()?;
         let sig_bytes: [u8; 64] = passport
             .signature
@@ -112,7 +115,14 @@ impl PassportAuthority {
 
         public_key
             .verify(&bytes, &signature)
-            .map_err(|_| CoreError::AuthError("Signature verification failed".to_string()))
+            .map_err(|_| CoreError::AuthError("Signature verification failed".to_string()))?;
+
+        // Policy check SECOND
+        if passport.payload.is_expired() {
+            return Err(CoreError::AuthError("Passport has expired".to_string()));
+        }
+
+        Ok(())
     }
 }
 
@@ -125,7 +135,7 @@ mod tests {
         let authority = PassportAuthority::new();
         let verifying_key = authority.verifying_key();
 
-        let payload = PassportPayload::new("agent-007", AgentRole::Lead, 3600);
+        let payload = PassportPayload::new("agent-007", AgentRole::Lead, 3600).unwrap();
         let passport = authority.issue(payload).expect("Failed to issue passport");
 
         // Verification should succeed
@@ -137,7 +147,7 @@ mod tests {
         let authority = PassportAuthority::new();
         let verifying_key = authority.verifying_key();
 
-        let mut payload = PassportPayload::new("agent-007", AgentRole::Coder, 10);
+        let mut payload = PassportPayload::new("agent-007", AgentRole::Coder, 10).unwrap();
         // Manually expire the payload
         payload.expires_at = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -161,7 +171,7 @@ mod tests {
         let authority = PassportAuthority::new();
         let verifying_key = authority.verifying_key();
 
-        let payload = PassportPayload::new("agent-007", AgentRole::Architect, 3600);
+        let payload = PassportPayload::new("agent-007", AgentRole::Architect, 3600).unwrap();
         let mut passport = authority.issue(payload).unwrap();
 
         // Tamper with the passport payload
