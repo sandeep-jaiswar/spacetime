@@ -1,0 +1,12 @@
+[package]
+name = "ghost-mesh"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ed25519-dalek = { workspace = true }
+rand = { workspace = true }
+bincode = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+domain = { path = "../domain" }

@@ -1,0 +1,24 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/domain",
+    "crates/ghost-mesh",
+    "crates/orchestrator",
+    "crates/agents",
+    "services/api-gateway"
+]
+
+[workspace.dependencies]
+ed25519-dalek = { version = "2.1", features = ["rand_core"] }
+rand = "0.8"
+bincode = "1.3"
+tokio = { version = "1.37", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+axum = "0.7"
+reqwest = { version = "0.12", features = ["json"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+async-trait = "0.1"
+thiserror = "1.0"
+anyhow = "1.0"
